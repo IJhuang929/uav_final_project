@@ -48,6 +48,9 @@ RUN apt-get update && apt-get install -y \
     python3-cvxopt python3-scipy \
     && rm -rf /var/lib/apt/lists/*
 
+# ── Phase2 Python dependencies ────────────────────────────────────────────────
+RUN python3 -m pip install --upgrade pip && python3 -m pip install cvxpy
+
 # ── AprilTag + vision + RTAB-Map odometry ────────────────────────────────────
 RUN apt-get update && apt-get install -y \
     ros-noetic-apriltag-ros \
@@ -84,6 +87,10 @@ RUN git clone --depth 1 https://github.com/ethz-asl/eigen_checks.git
 RUN git clone --depth 1 https://github.com/ethz-asl/gflags_catkin.git
 
 WORKDIR /root/catkin_ws
+
+# Patch iris xacro to add downward camera before build
+COPY scripts/patch_xacro.py /tmp/patch_xacro.py
+RUN python3 /tmp/patch_xacro.py
 
 RUN apt-get update \
  && bash -c "source /opt/ros/noetic/setup.bash \

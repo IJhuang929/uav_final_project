@@ -24,6 +24,7 @@ Service /apriltag_lander/enable (std_srvs/SetBool):
   True  → start from TAKEOFF, initialise cmd setpoint from odometry
   False → hold position
 """
+import os
 import rospy
 import numpy as np
 from apriltag_ros.msg import AprilTagDetectionArray
@@ -85,9 +86,11 @@ class AprilTagLander:
         self._cmd_y = 0.0
         self._cmd_z = 0.0
 
-        # Default: enabled immediately (standalone demo mode).
-        # Mission manager will call the service to disable / re-enable.
-        self._enabled = True
+        # Standalone demo (demo_landing.sh): starts enabled.
+        # Full mission (demo_full_mission.sh): pass LANDER_INITIALLY_ENABLED=false
+        # so mission_manager controls when landing begins.
+        _env = os.environ.get('LANDER_INITIALLY_ENABLED', 'true').lower()
+        self._enabled = _env not in ('false', '0', 'no')
         rospy.Service('/apriltag_lander/enable', SetBool, self._enable_cb)
 
         rospy.loginfo(f'[Lander] Init — mav={self.ns}  takeoff_alt={self.takeoff_alt}m')
@@ -162,7 +165,6 @@ class AprilTagLander:
         while not rospy.is_shutdown():
 
             if not self._enabled:
-                self.hold()
                 self.rate.sleep()
                 continue
 

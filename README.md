@@ -119,3 +119,19 @@ uav_sim/
 └── worlds/
     └── apriltag_landing.world  # 含障礙物 + AprilTag 的場景
 ```
+
+ROS 專案 Debug 與重構指令】
+我目前有一個基於 ROS Noetic 與 RotorS 的無人機專案，包含 mission_manager.py、apriltag_lander.py 等檔案。目前遇到以下幾個嚴重的架構與邏輯問題，請幫我一次性檢查並修復這些檔案：
+Topic 搶佔問題：確認這些 apriltag_lander.py、mission_manager.py、trajectory_planner.py 發布 topic 是不是有重複的 pose，會不會讓控制器拿到錯誤的指令？
+狀態機覆蓋問題：目前的狀態機會遇到進入 IDLE 就出不來的問題，幫我檢查這是為什麼？
+型別報錯：obstacle_detector.py 會出現型別不對的問題 list[] 或 tuple[]，幫我解決。目前版本用的 python3.8 所以沒有這些型別。
+
+
+
+# 規劃
+起飛到 x=14 (軌跡規劃控制):
+  mission_manager ──waypoints──→ trajectory_planner ──/iris/command/pose──→ Lee
+
+到達 AprilTag 附近 (視覺伺服控制):
+  mission_manager → _enable_lander(True)
+  apriltag_lander ──/iris/command/pose──→ Lee  (trajectory_planner 被 cancel)

@@ -2,19 +2,19 @@
 """
 obstacle_detector.py
 
-Subscribes: /iris/vi_sensor/camera_depth/points  (sensor_msgs/PointCloud2)
+Subscribes: /iris/vi_sensor/camera_depth/depth/points  (sensor_msgs/PointCloud2)
 Publishes:  /obstacle/info  (std_msgs/Float32MultiArray)
     data[0]  detected    1.0 = obstacle inside alert range, 0.0 = clear
     data[1]  distance    metres to nearest ROI point (1e9 if clear)
     data[2]  left_clear  min dist on port  side (x < 0 in optical frame; 1e9 = open)
-    data[3]  right_clear min dist on starboard side (x ≥ 0;              1e9 = open)
+    data[3]  right_clear min dist on starboard side (x >= 0;              1e9 = open)
     data[4]  gap_y       world-frame Y offset of best passable gap centre (0 = centre)
     data[5]  gap_width   passable width of that gap in metres (0 = none found)
 
 Camera optical frame (vi_sensor faces forward in drone body):
     z = depth / forward    x = right    y = down
 Port/starboard mapping: camera x < 0 = drone left = world +Y
-                        camera x ≥ 0 = drone right = world -Y
+                        camera x >= 0 = drone right = world -Y
 """
 import math
 import numpy as np
@@ -29,7 +29,7 @@ HORIZ_CONE = math.radians(35)  # half-angle of horizontal detection cone
 VERT_UP    = math.radians(20)  # max upward angle included (above optical axis)
 VERT_DOWN  = math.radians(25)  # max downward angle included (towards ground)
 
-ALERT_DIST = 3.00          # m  nearest ROI point < this  →  detected = 1
+ALERT_DIST = 4.50          # m  nearest ROI point < this  →  detected = 1
 MIN_POINTS = 15            # fewer ROI points than this  →  treat as noise / clear
 SUBSAMPLE  = 4             # stride: process every Nth point row (CPU budget)
 INF        = 1e9           # sentinel "no obstacle" distance
@@ -40,7 +40,8 @@ GAP_DEPTH_BAND = 0.8       # m — depth range around nearest obstacle to examin
 GAP_MIN_PTS    = 2         # points per bin to count the bin as blocked
 GAP_MIN_WIDTH  = 1.0       # m — minimum gap width to report as passable
 
-CLOUD_TOPIC = '/iris/vi_sensor/camera_depth/points'
+# Corrected topic: depth/points lives under depth/, not directly under camera_depth/
+CLOUD_TOPIC = '/iris/vi_sensor/camera_depth/depth/points'
 INFO_TOPIC  = '/obstacle/info'
 
 
@@ -83,15 +84,7 @@ class ObstacleDetector:
     # ── Gap detection ─────────────────────────────────────────────────────────
 
     def _find_gap(self, x_roi: np.ndarray, z_roi: np.ndarray,
-                  obs_dist: float) -> tuple[float, float]:
-        """Find the widest horizontal gap through the obstacle field.
-
-        Examines points within GAP_DEPTH_BAND of the nearest obstacle.
-        Returns (gap_center_y, gap_width) in world-frame metres.
-        gap_center_y: world Y offset of gap centre relative to drone
-                      (positive = left / port, negative = right / starboard)
-        gap_width:    passable width in metres; 0 = no gap found.
-        """
+                  obs_dist: float) -> tuple:
         band = (z_roi >= obs_dist - GAP_DEPTH_BAND) & \
                (z_roi <= obs_dist + GAP_DEPTH_BAND)
         x_near = x_roi[band]
@@ -99,7 +92,6 @@ class ObstacleDetector:
         if x_near.size == 0:
             return 0.0, 0.0
 
-        # Bin edges spanning the horizontal FOV at the obstacle depth
         half_w    = obs_dist * math.tan(HORIZ_CONE)
         bin_edges = np.linspace(-half_w, half_w, GAP_BINS + 1)
         bin_w     = bin_edges[1] - bin_edges[0]
@@ -107,7 +99,6 @@ class ObstacleDetector:
         counts, _ = np.histogram(x_near, bins=bin_edges)
         blocked   = counts >= GAP_MIN_PTS
 
-        # Find the widest contiguous run of unblocked bins
         best_start, best_len = -1, 0
         cur_start,  cur_len  = -1, 0
         for i in range(GAP_BINS):
@@ -116,7 +107,7 @@ class ObstacleDetector:
                     cur_start = i
                 cur_len += 1
                 if cur_len > best_len:
-                    best_len  = cur_len
+                    best_len   = cur_len
                     best_start = cur_start
             else:
                 cur_start, cur_len = -1, 0

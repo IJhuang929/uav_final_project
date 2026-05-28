@@ -23,6 +23,9 @@ source /root/catkin_ws/devel/setup.bash 2>/dev/null || true
 
 export DISPLAY=:99
 
+# ── Patch iris xacro to add downward camera (idempotent) ─────────────────────
+python3 /root/scripts/patch_xacro.py || true
+
 # ── Sync world file and AprilTag assets ───────────────────────────────────────
 cp /root/catkin_ws/src/worlds/obstacle_course.world \
    /root/catkin_ws/src/rotors_simulator/rotors_gazebo/worlds/obstacle_course.world
@@ -63,22 +66,28 @@ xterm -title "Gazebo: Full Mission" \
 echo "Waiting 20 s for Gazebo to load..."
 sleep 20
 
-# ── 1.5. RTAB-Map visual odometry ────────────────────────────────────────────
-xterm -title "RTAB-Map Odometry" \
-  -geometry 80x12+1400+10 \
-  -fa 'Monospace' -fs 10 -bg '#0d1117' -fg '#a371f7' \
-  -e bash -c "
-    source /opt/ros/noetic/setup.bash
-    source /root/catkin_ws/devel/setup.bash 2>/dev/null || true
-    export DISPLAY=:99
-    echo '[RTAB-Map] Starting RGB-D visual odometry → /rtabmap/odom'
-    roslaunch /root/scripts/rtabmap.launch 2>&1
-    bash
-  " &
-
-echo "Waiting for RTAB-Map odometry node to advertise..."
-until rostopic list 2>/dev/null | grep -q '/rtabmap/odom'; do sleep 1; done
-echo "RTAB-Map ready."
+# ── 1.5. RTAB-Map visual odometry (skip if package not installed) ─────────────
+if rospack find rtabmap_odom >/dev/null 2>&1; then
+  xterm -title "RTAB-Map Odometry" \
+    -geometry 80x12+1400+10 \
+    -fa 'Monospace' -fs 10 -bg '#0d1117' -fg '#a371f7' \
+    -e bash -c "
+      source /opt/ros/noetic/setup.bash
+      source /root/catkin_ws/devel/setup.bash 2>/dev/null || true
+      export DISPLAY=:99
+      echo '[RTAB-Map] Starting RGB-D visual odometry → /rtabmap/odom'
+      roslaunch /root/scripts/rtabmap.launch 2>&1
+      bash
+    " &
+  echo "Waiting for RTAB-Map odometry node to advertise..."
+  until rostopic list 2>/dev/null | grep -q '/rtabmap/odom'; do sleep 1; done
+  echo "RTAB-Map ready."
+  export USE_RTABMAP=true
+else
+  echo "[WARN] rtabmap_odom not installed — falling back to Gazebo ground truth"
+  echo "       (install: apt-get install ros-noetic-rtabmap-odom)"
+  export USE_RTABMAP=false
+fi
 
 # ── 2. Gazebo pose relay ──────────────────────────────────────────────────────
 xterm -title "Gazebo Controller" \
@@ -88,7 +97,8 @@ xterm -title "Gazebo Controller" \
     source /opt/ros/noetic/setup.bash
     source /root/catkin_ws/devel/setup.bash 2>/dev/null || true
     export DISPLAY=:99
-    echo '[gazebo_controller] source=RTAB-Map → /iris/ground_truth/odometry + /iris/odometry_sensor1/pose'
+    export USE_RTABMAP=${USE_RTABMAP}
+    echo '[gazebo_controller] USE_RTABMAP=${USE_RTABMAP}'
     python3 /root/scripts/gazebo_controller.py 2>&1
     bash
   " &
@@ -104,7 +114,7 @@ xterm -title "AprilTag Detector" \
     source /root/catkin_ws/devel/setup.bash 2>/dev/null || true
     export DISPLAY=:99
     roslaunch apriltag_ros continuous_detection.launch \
-      camera_name:=/iris/vi_sensor/camera_depth \
+      camera_name:=/iris/cam_down \
       image_topic:=image_raw \
       tags_config:=/root/scripts/tags.yaml 2>&1
     bash
@@ -154,7 +164,7 @@ xterm -title "Traj Viz" \
 
 sleep 1
 
-# ── 7. AprilTag precision lander (waits for enable service call) ──────────────
+# ── 7. AprilTag precision lander (disabled until mission_manager reaches APPROACH) ──
 xterm -title "AprilTag Lander" \
   -geometry 80x12+10+700 \
   -fa 'Monospace' -fs 10 -bg '#0d1117' -fg '#3fb950' \
@@ -162,7 +172,7 @@ xterm -title "AprilTag Lander" \
     source /opt/ros/noetic/setup.bash
     source /root/catkin_ws/devel/setup.bash 2>/dev/null || true
     export DISPLAY=:99
-    python3 /root/scripts/apriltag_lander.py 2>&1
+    LANDER_INITIALLY_ENABLED=false python3 /root/scripts/apriltag_lander.py 2>&1
     bash
   " &
 

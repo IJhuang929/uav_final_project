@@ -32,8 +32,8 @@ services:
       - SYS_PTRACE
 
     volumes:
-      - ./worlds:/root/catkin_ws/src/worlds:ro
-      - ./scripts:/root/scripts:ro
+      - ./worlds:/root/catkin_ws/src/worlds
+      - ./scripts:/root/scripts
       - ros_logs:/root/.ros
       - gazebo_cache:/root/.gazebo
 
