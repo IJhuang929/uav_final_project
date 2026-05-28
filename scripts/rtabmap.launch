@@ -1,0 +1,42 @@
+<launch>
+  <!--
+    RTAB-Map RGB-D Visual Odometry for iris + vi_sensor.
+
+    vi_sensor depth camera topics (libgazebo_ros_openni_kinect):
+      image_raw   : /iris/vi_sensor/camera_depth/image_raw         (RGB, sensor_msgs/Image)
+      camera_info : /iris/vi_sensor/camera_depth/camera_info       (sensor_msgs/CameraInfo)
+      depth image : /iris/vi_sensor/camera_depth/depth/disparity   (sensor_msgs/Image 32FC1 metres)
+
+    Output: /rtabmap/odom  (nav_msgs/Odometry, frame: world)
+
+    publish_tf is false — Gazebo already manages TF; we only want the odom message.
+  -->
+
+  <node pkg="rtabmap_odom" type="rgbd_odometry" name="rtabmap_odom" output="screen">
+
+    <!-- ── Input remaps ─────────────────────────────────────────────────── -->
+    <remap from="rgb/image"       to="/iris/vi_sensor/camera_depth/image_raw"/>
+    <remap from="rgb/camera_info" to="/iris/vi_sensor/camera_depth/camera_info"/>
+    <!-- depth/disparity is sensor_msgs/Image 32FC1 (metres), not stereo disparity -->
+    <remap from="depth/image"     to="/iris/vi_sensor/camera_depth/depth/disparity"/>
+
+    <!-- ── Output remap ─────────────────────────────────────────────────── -->
+    <remap from="odom"            to="/rtabmap/odom"/>
+
+    <!-- ── Frame IDs ────────────────────────────────────────────────────── -->
+    <param name="frame_id"        value="iris/base_link"/>
+    <param name="odom_frame_id"   value="world"/>
+    <param name="publish_tf"      value="false"/>
+
+    <!-- ── Odometry strategy: Frame-to-Map (more robust for slow flight) ── -->
+    <param name="Odom/Strategy"   value="0"/>
+
+    <!-- ── Visual feature tuning for indoor close-range scene ───────────── -->
+    <param name="Vis/MinInliers"  value="10"/>
+    <param name="Vis/MaxDepth"    value="8.0"/>
+
+    <!-- ── 6-DOF holonomic (drone can move in any direction) ────────────── -->
+    <param name="Odom/Holonomic"  value="true"/>
+
+  </node>
+</launch>

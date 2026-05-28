@@ -1,0 +1,55 @@
+services:
+  uav-sim:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: uav-sim-gazebo:latest
+    container_name: uav_sim_gazebo
+
+    environment:
+      - DISPLAY=:99
+      - RESOLUTION=1920x1080
+      - ROS_MASTER_URI=http://localhost:11311
+      - ROS_HOSTNAME=localhost
+      # ── GPU 設定：有 NVIDIA GPU 就把下面兩行取消註解 ──
+      - NVIDIA_VISIBLE_DEVICES=all
+      - NVIDIA_DRIVER_CAPABILITIES=all
+      # ── 無 GPU / CI 環境用軟體渲染 ──
+      - LIBGL_ALWAYS_SOFTWARE=0
+      # - MESA_GL_VERSION_OVERRIDE=3.3
+      - GAZEBO_MASTER_URI=http://localhost:11345
+
+    ports:
+      - "8080:8080"    # noVNC  →  http://localhost:8080/vnc.html
+      - "5901:5900"    # 原生 VNC client 用
+      - "11311:11311"  # ROS master
+      - "11345:11345"  # Gazebo master
+
+    shm_size: "4gb"
+    ipc: host
+    privileged: false
+    cap_add:
+      - SYS_PTRACE
+
+    volumes:
+      - ./worlds:/root/catkin_ws/src/worlds:ro
+      - ./scripts:/root/scripts:ro
+      - ros_logs:/root/.ros
+      - gazebo_cache:/root/.gazebo
+
+    deploy:
+      resources:
+        limits:
+          memory: 10g
+        reservations:
+          memory: 4g
+
+    runtime: nvidia
+
+    restart: unless-stopped
+    stdin_open: true
+    tty: true
+
+volumes:
+  ros_logs:
+  gazebo_cache:

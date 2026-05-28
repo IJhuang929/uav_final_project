@@ -1,0 +1,21 @@
+// Ogre material for AprilTag 36h11 id=0 landing pad
+// Texture is looked up in any media/materials/textures/ on GAZEBO_RESOURCE_PATH.
+// The file tag36_11_00000.png is downloaded by the Dockerfile build step.
+
+material AprilTagPad/tag36_11_00000
+{
+    technique
+    {
+        pass
+        {
+            lighting off
+            texture_unit
+            {
+                texture tag36_11_00000.png
+                // nearest-neighbour: keeps crisp tag edges, no blurring
+                filtering none
+                scale 1.0 1.0
+            }
+        }
+    }
+}

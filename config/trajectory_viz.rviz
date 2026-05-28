@@ -1,0 +1,77 @@
+Panels:
+  - Class: rviz/Displays
+    Name: Displays
+    Property Tree Widget:
+      Expanded:
+        - /Global Options1
+        - /Occupancy Map1
+        - /Trajectory Markers1
+      Splitter Ratio: 0.5
+    Tree Height: 600
+  - Class: rviz/Views
+    Name: Views
+    Splitter Ratio: 0.5
+
+Visualization Manager:
+  Class: ""
+  Displays:
+    - Alpha: 0.5
+      Cell Size: 1
+      Class: rviz/Grid
+      Color: 160; 160; 164
+      Enabled: true
+      Name: Grid
+      Plane: XY
+      Plane Cell Count: 30
+      Reference Frame: <Fixed Frame>
+      Value: true
+
+    - Alpha: 0.85
+      Class: rviz/Map
+      Color Scheme: costmap
+      Draw Behind: true
+      Enabled: true
+      Name: Occupancy Map
+      Topic: /viz/occupancy_map
+      Unreliable: false
+      Use Timestamp: false
+      Value: true
+
+    - Class: rviz/MarkerArray
+      Enabled: true
+      Marker Topic: /viz/markers
+      Name: Trajectory Markers
+      Queue Size: 100
+      Value: true
+
+  Enabled: true
+  Global Options:
+    Background Color: 30; 30; 35
+    Default Light: true
+    Fixed Frame: world
+    Frame Rate: 30
+  Name: root
+  Tools:
+    - Class: rviz/Interact
+      Hide Inactive: false
+    - Class: rviz/MoveCamera
+    - Class: rviz/Select
+    - Class: rviz/FocusCamera
+  Value: true
+  Views:
+    Current:
+      Class: rviz/TopDownOrtho
+      Name: Current View
+      Near Clip Distance: 0.01
+      Scale: 45
+      Target Frame: <Fixed Frame>
+      Value: TopDownOrtho (rviz)
+      X: 7.5
+      Y: 0
+    Saved: ~
+
+Window Geometry:
+  Height: 900
+  Width: 1280
+  X: 600
+  Y: 0

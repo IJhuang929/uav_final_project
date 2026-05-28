@@ -1,0 +1,179 @@
+<?xml version="1.0" ?>
+<!--
+  obstacle_course.world
+  ─────────────────────
+  Layout (top-down, drone travels +X from origin):
+
+  Y
+  3 │
+  2 │         [P2: 6.5, 1.8]
+  1 │                        [P4: 9.5, 0.6]
+  0 │  [START] [P1: 4.0, 0]                      [TAG: 14, 0]
+ -1 │                  [P3: 7.0,-1.5]  [P5:11.5,-1.0]
+ -2 │
+    └────────────────────────────────────────────────── X
+       0       4    6.5  7    9.5 11.5              14
+
+  - Iris spawns at (0, 0, 0.1) → takes off to 1.5 m
+  - 5 concrete-grey cylinders force zigzag avoidance
+  - AprilTag 36h11 id=0 (1 m × 1 m) is on the ground at x=14
+-->
+<sdf version="1.6">
+  <world name="obstacle_course">
+
+    <!-- Required: bridges ROS topics ↔ Gazebo transport for motor commands and odometry -->
+    <plugin name="ros_interface_plugin" filename="librotors_gazebo_ros_interface_plugin.so"/>
+
+    <!-- ── Physics ───────────────────────────────────────────────────────── -->
+    <physics type="ode">
+      <max_step_size>0.001</max_step_size>
+      <real_time_factor>1</real_time_factor>
+      <real_time_update_rate>1000</real_time_update_rate>
+      <gravity>0 0 -9.81</gravity>
+    </physics>
+
+    <!-- ── Environment ───────────────────────────────────────────────────── -->
+    <include><uri>model://sun</uri></include>
+    <include><uri>model://ground_plane</uri></include>
+
+    <!-- ── Start marker: green square at origin ──────────────────────────── -->
+    <model name="start_marker">
+      <static>true</static>
+      <pose>0 0 0.001 0 0 0</pose>
+      <link name="link">
+        <visual name="visual">
+          <geometry><box><size>0.6 0.6 0.002</size></box></geometry>
+          <material><script>
+            <uri>file://media/materials/scripts/gazebo.material</uri>
+            <name>Gazebo/Green</name>
+          </script></material>
+        </visual>
+      </link>
+    </model>
+
+    <!-- ── Pillar 1: direct center blocker ───────────────────────────────── -->
+    <model name="pillar_1">
+      <static>true</static>
+      <!-- pose: x y z  roll pitch yaw  (z = half height = 1.5) -->
+      <pose>4.0 0.0 1.5 0 0 0</pose>
+      <link name="link">
+        <visual name="visual">
+          <geometry><cylinder><radius>0.40</radius><length>3.0</length></cylinder></geometry>
+          <material><script>
+            <uri>file://media/materials/scripts/gazebo.material</uri>
+            <name>Gazebo/Grey</name>
+          </script></material>
+        </visual>
+        <collision name="collision">
+          <geometry><cylinder><radius>0.40</radius><length>3.0</length></cylinder></geometry>
+        </collision>
+      </link>
+    </model>
+
+    <!-- ── Pillar 2: upper-side channel guard ────────────────────────────── -->
+    <model name="pillar_2">
+      <static>true</static>
+      <pose>6.5 1.8 1.5 0 0 0</pose>
+      <link name="link">
+        <visual name="visual">
+          <geometry><cylinder><radius>0.35</radius><length>3.0</length></cylinder></geometry>
+          <material><script>
+            <uri>file://media/materials/scripts/gazebo.material</uri>
+            <name>Gazebo/Grey</name>
+          </script></material>
+        </visual>
+        <collision name="collision">
+          <geometry><cylinder><radius>0.35</radius><length>3.0</length></cylinder></geometry>
+        </collision>
+      </link>
+    </model>
+
+    <!-- ── Pillar 3: lower-side channel guard ────────────────────────────── -->
+    <model name="pillar_3">
+      <static>true</static>
+      <pose>7.0 -1.5 1.5 0 0 0</pose>
+      <link name="link">
+        <visual name="visual">
+          <geometry><cylinder><radius>0.35</radius><length>3.0</length></cylinder></geometry>
+          <material><script>
+            <uri>file://media/materials/scripts/gazebo.material</uri>
+            <name>Gazebo/Grey</name>
+          </script></material>
+        </visual>
+        <collision name="collision">
+          <geometry><cylinder><radius>0.35</radius><length>3.0</length></cylinder></geometry>
+        </collision>
+      </link>
+    </model>
+
+    <!-- ── Pillar 4: second center blocker ───────────────────────────────── -->
+    <model name="pillar_4">
+      <static>true</static>
+      <pose>9.5 0.6 1.5 0 0 0</pose>
+      <link name="link">
+        <visual name="visual">
+          <geometry><cylinder><radius>0.40</radius><length>3.0</length></cylinder></geometry>
+          <material><script>
+            <uri>file://media/materials/scripts/gazebo.material</uri>
+            <name>Gazebo/Grey</name>
+          </script></material>
+        </visual>
+        <collision name="collision">
+          <geometry><cylinder><radius>0.40</radius><length>3.0</length></cylinder></geometry>
+        </collision>
+      </link>
+    </model>
+
+    <!-- ── Pillar 5: final obstacle before tag ───────────────────────────── -->
+    <model name="pillar_5">
+      <static>true</static>
+      <pose>11.5 -1.0 1.25 0 0 0</pose>
+      <link name="link">
+        <visual name="visual">
+          <geometry><cylinder><radius>0.30</radius><length>2.5</length></cylinder></geometry>
+          <material><script>
+            <uri>file://media/materials/scripts/gazebo.material</uri>
+            <name>Gazebo/Grey</name>
+          </script></material>
+        </visual>
+        <collision name="collision">
+          <geometry><cylinder><radius>0.30</radius><length>2.5</length></cylinder></geometry>
+        </collision>
+      </link>
+    </model>
+
+    <!-- ── AprilTag landing pad ───────────────────────────────────────────── -->
+    <!--
+      tag36h11 id=0, 1 m × 1 m flat box on ground.
+      Requires: media/materials/textures/tag36_11_00000.png
+      (downloaded by Dockerfile from apriltag-imgs repo)
+    -->
+    <model name="apriltag_pad">
+      <static>true</static>
+      <pose>14.0 0.0 0.001 0 0 0</pose>
+      <link name="link">
+        <visual name="visual">
+          <geometry><box><size>1.0 1.0 0.002</size></box></geometry>
+          <material>
+            <script>
+              <uri>file://media/materials/scripts/apriltag.material</uri>
+              <name>AprilTagPad/tag36_11_00000</name>
+            </script>
+          </material>
+        </visual>
+        <collision name="collision">
+          <geometry><box><size>1.0 1.0 0.002</size></box></geometry>
+        </collision>
+      </link>
+    </model>
+
+    <!-- ── GUI default camera: bird's-eye view of the full corridor ──────── -->
+    <gui fullscreen="0">
+      <camera name="user_camera">
+        <pose>7 -14 12 0 0.65 1.57</pose>
+        <view_controller>orbit</view_controller>
+      </camera>
+    </gui>
+
+  </world>
+</sdf>

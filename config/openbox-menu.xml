@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<openbox_menu xmlns="http://openbox.org/3.4/menu">
+  <menu id="root-menu" label="UAV Sim">
+    <item label="Terminal">
+      <action name="Execute">
+        <command>xterm -fa 'Monospace' -fs 11 -bg '#1e1e1e' -fg '#d4d4d4'</command>
+      </action>
+    </item>
+    <separator/>
+    <item label="▶  Demo: Gazebo + RotorS hover">
+      <action name="Execute">
+        <command>bash /root/scripts/demo_hover.sh</command>
+      </action>
+    </item>
+    <item label="▶  Demo: Obstacle avoidance">
+      <action name="Execute">
+        <command>bash /root/scripts/demo_avoid.sh</command>
+      </action>
+    </item>
+    <item label="▶  Demo: AprilTag landing">
+      <action name="Execute">
+        <command>bash /root/scripts/demo_landing.sh</command>
+      </action>
+    </item>
+    <separator/>
+    <item label="rqt_graph">
+      <action name="Execute">
+        <command>bash -c "DISPLAY=:99 source /opt/ros/noetic/setup.bash &amp;&amp; rqt_graph"</command>
+      </action>
+    </item>
+    <item label="rqt (full)">
+      <action name="Execute">
+        <command>bash -c "DISPLAY=:99 source /opt/ros/noetic/setup.bash &amp;&amp; rqt"</command>
+      </action>
+    </item>
+  </menu>
+</openbox_menu>
