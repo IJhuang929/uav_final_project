@@ -88,10 +88,6 @@ RUN git clone --depth 1 https://github.com/ethz-asl/gflags_catkin.git
 
 WORKDIR /root/catkin_ws
 
-# Patch iris xacro to add downward camera before build
-COPY scripts/patch_xacro.py /tmp/patch_xacro.py
-RUN python3 /tmp/patch_xacro.py
-
 RUN apt-get update \
  && bash -c "source /opt/ros/noetic/setup.bash \
     && rosdep install --from-paths src --ignore-src -r -y --rosdistro noetic" \

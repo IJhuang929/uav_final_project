@@ -23,9 +23,6 @@ source /root/catkin_ws/devel/setup.bash 2>/dev/null || true
 
 export DISPLAY=:99
 
-# ── Patch iris xacro to add downward camera (idempotent) ─────────────────────
-python3 /root/scripts/patch_xacro.py || true
-
 # ── Sync world file and AprilTag assets ───────────────────────────────────────
 cp /root/catkin_ws/src/worlds/obstacle_course.world \
    /root/catkin_ws/src/rotors_simulator/rotors_gazebo/worlds/obstacle_course.world
@@ -114,7 +111,7 @@ xterm -title "AprilTag Detector" \
     source /root/catkin_ws/devel/setup.bash 2>/dev/null || true
     export DISPLAY=:99
     roslaunch apriltag_ros continuous_detection.launch \
-      camera_name:=/iris/cam_down \
+      camera_name:=/iris/vi_sensor/camera_depth \
       image_topic:=image_raw \
       tags_config:=/root/scripts/tags.yaml 2>&1
     bash
