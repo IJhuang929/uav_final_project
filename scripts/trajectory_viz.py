@@ -292,11 +292,11 @@ class TrajectoryViz:
     def _spawn_sphere(self, pos: Point):
         name = f'trail_{self.sphere_count}'
         self.sphere_count += 1
-        sdf = self._sphere_sdf(name, r=0.02, rgba=(0.2, 0.7, 1.0, 0.5))
+        sdf = self._sphere_sdf(name, r=0.04, rgba=(0.2, 0.7, 1.0, 0.5))
         self._do_spawn(name, sdf, pos)
 
     def _spawn_planned_sphere(self, pos: Point, name: str):
-        sdf = self._sphere_sdf(name, r=0.02, rgba=(1.0, 0.15, 0.15, 0.85))
+        sdf = self._sphere_sdf(name, r=0.04, rgba=(1.0, 0.15, 0.15, 0.85))
         self._do_spawn(name, sdf, pos)
 
     def _do_spawn(self, name: str, sdf: str, pos: Point):

@@ -63,7 +63,7 @@ TAKEOFF_TOL        = 0.15   # m
 KI_Z               = 0.5    # altitude integrator gain [1/s]
 Z_INT_MAX          = 0.6    # max integral term [m]
 TARGET             = (14.0, 0.0, 1.5)
-AVOID_TRIGGER_M    = 5.0    # m — trigger OBSTACLE_REPLAN below this distance
+AVOID_TRIGGER_M    = 2.5    # m — trigger OBSTACLE_REPLAN below this distance
 DODGE_LATERAL_M    = 2.5    # m — geometric-fallback lateral dodge
 DODGE_RESUME_M     = 2.5    # m — geometric-fallback clearance past obstacle
 MIN_PASSABLE_W     = 1.0    # m — minimum gap width for gap-steering
@@ -328,9 +328,12 @@ class MissionManager:
         dist = math.hypot(tx - cx, ty - cy)
 
         # ── Handoff to lander (drone_fsm PRECISION_LAND equivalent) ──────────
-        if self._tag_stable_count >= APPROACH_STABLE_N and dist < APPROACH_CLOSE_M:
+        # When close, forward camera loses the tag (it's below FOV) — that's
+        # expected. Hand off to apriltag_lander (downward cam) once we're near
+        # the estimated tag position; no stable-count requirement at close range.
+        if dist < APPROACH_CLOSE_M:
             rospy.loginfo(
-                f'[Mission] Tag locked  stable={self._tag_stable_count}'
+                f'[Mission] Near tag  stable={self._tag_stable_count}'
                 f'  dist={dist:.1f}m — enabling apriltag_lander'
             )
             self._enable_lander(True)

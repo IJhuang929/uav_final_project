@@ -6,6 +6,7 @@ Panels:
         - /Global Options1
         - /Occupancy Map1
         - /Trajectory Markers1
+        - /Downward Camera1
       Splitter Ratio: 0.5
     Tree Height: 600
   - Class: rviz/Views
@@ -44,6 +45,24 @@ Visualization Manager:
       Queue Size: 100
       Value: true
 
+    - Class: rviz/Image
+      Enabled: true
+      Image Topic: /iris/camera_down/image_raw
+      Max Value: 1
+      Min Value: 0
+      Name: Downward Camera
+      Normalize Range: true
+      Queue Size: 2
+      Transport Hint: raw
+      Value: true
+
+    - Class: rviz/MarkerArray
+      Enabled: true
+      Marker Topic: /tag_detections/marker_array
+      Name: AprilTag Forward
+      Queue Size: 10
+      Value: false
+
   Enabled: true
   Global Options:
     Background Color: 30; 30; 35
@@ -71,6 +90,8 @@ Visualization Manager:
     Saved: ~
 
 Window Geometry:
+  Downward Camera:
+    collapsed: false
   Height: 900
   Width: 1280
   X: 600

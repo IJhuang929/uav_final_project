@@ -25,11 +25,11 @@ from std_msgs.msg import Float32MultiArray
 # ── ROI tuning ────────────────────────────────────────────────────────────────
 DEPTH_MIN  = 0.40          # m  stereo near-field noise floor
 DEPTH_MAX  = 6.00          # m  max reliable stereo range
-HORIZ_CONE = math.radians(35)  # half-angle of horizontal detection cone
+HORIZ_CONE = math.radians(25)  # half-angle of horizontal detection cone
 VERT_UP    = math.radians(20)  # max upward angle included (above optical axis)
 VERT_DOWN  = math.radians(25)  # max downward angle included (towards ground)
 
-ALERT_DIST = 4.50          # m  nearest ROI point < this  →  detected = 1
+ALERT_DIST = 2.50          # m  nearest ROI point < this  →  detected = 1
 MIN_POINTS = 15            # fewer ROI points than this  →  treat as noise / clear
 SUBSAMPLE  = 4             # stride: process every Nth point row (CPU budget)
 INF        = 1e9           # sentinel "no obstacle" distance

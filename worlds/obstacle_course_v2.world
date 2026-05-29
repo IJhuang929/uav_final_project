@@ -1,0 +1,406 @@
+<?xml version="1.0" ?>
+<!--
+  obstacle_course_v2.world
+  ────────────────────────────────────────────────────────────────────
+  Changes from v1:
+    1. Enclosed corridor (walls N/S/W/E + ceiling) for RTMAP depth cues
+    2. Ground: Checkerboard (high corner-feature density for visual odometry)
+    3. Walls: Bricks texture (rich keypoints for feature matching)
+    4. Ceiling: TiledFloor for downward-camera landmarks
+    5. Visual landmark boards on each wall segment (Checkerboard panels)
+    6. All 5 pillars retained, now with WoodPallet texture for contrast
+    7. AprilTag pad retained at x=14
+    8. Point light array replaces single sun (uniform indoor illumination)
+
+  Corridor dimensions:
+    X: -1  → 16   (length 17 m, gives 1 m buffer before/after flight path)
+    Y: -5  →  5   (width 10 m, enough room to zigzag around pillars)
+    Z:  0  →  4   (height 4 m)
+
+  Coordinate reference (unchanged from v1):
+    Iris at (0,0,0.1) → takeoff to 1.5 m
+    Pillars: P1(4,0) P2(6.5,1.8) P3(7,-1.5) P4(9.5,0.6) P5(11.5,-1)
+    AprilTag: (14, 0)
+-->
+<sdf version="1.6">
+  <world name="obstacle_course">
+
+    <plugin name="ros_interface_plugin"
+            filename="librotors_gazebo_ros_interface_plugin.so"/>
+
+    <!-- ── Physics ──────────────────────────────────────────────────────── -->
+    <physics type="ode">
+      <max_step_size>0.001</max_step_size>
+      <real_time_factor>1</real_time_factor>
+      <real_time_update_rate>1000</real_time_update_rate>
+      <gravity>0 0 -9.81</gravity>
+    </physics>
+
+    <!-- ── Lighting: uniform point lights (no harsh shadows) ────────────── -->
+    <!-- Remove the sun to get consistent indoor illumination -->
+    <!-- <include><uri>model://sun</uri></include> -->
+
+    <light name="light_00" type="point">
+      <pose>2.5 0 3.8 0 0 0</pose>
+      <diffuse>0.9 0.9 0.9 1</diffuse>
+      <specular>0.2 0.2 0.2 1</specular>
+      <attenuation><range>8</range><constant>0.4</constant><linear>0.01</linear><quadratic>0.0</quadratic></attenuation>
+      <cast_shadows>false</cast_shadows>
+    </light>
+    <light name="light_01" type="point">
+      <pose>7.5 0 3.8 0 0 0</pose>
+      <diffuse>0.9 0.9 0.9 1</diffuse>
+      <specular>0.2 0.2 0.2 1</specular>
+      <attenuation><range>8</range><constant>0.4</constant><linear>0.01</linear><quadratic>0.0</quadratic></attenuation>
+      <cast_shadows>false</cast_shadows>
+    </light>
+    <light name="light_02" type="point">
+      <pose>12.5 0 3.8 0 0 0</pose>
+      <diffuse>0.9 0.9 0.9 1</diffuse>
+      <specular>0.2 0.2 0.2 1</specular>
+      <attenuation><range>8</range><constant>0.4</constant><linear>0.01</linear><quadratic>0.0</quadratic></attenuation>
+      <cast_shadows>false</cast_shadows>
+    </light>
+
+    <!-- ══════════════════════════════════════════════════════════════════
+         GROUND  –  Checkerboard for dense visual features
+         ══════════════════════════════════════════════════════════════════ -->
+    <model name="ground_plane">
+      <static>true</static>
+      <link name="link">
+        <collision name="collision">
+          <geometry><plane><normal>0 0 1</normal><size>50 50</size></plane></geometry>
+        </collision>
+        <visual name="visual">
+          <geometry><plane><normal>0 0 1</normal><size>50 50</size></plane></geometry>
+          <material>
+            <script>
+              <uri>file://media/materials/scripts/gazebo.material</uri>
+              <!-- Checkerboard gives maximum corner features for RTMAP/ORB -->
+              <name>Gazebo/Checkerboard</name>
+            </script>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+
+    <!-- ══════════════════════════════════════════════════════════════════
+         WALLS  –  Bricks for rich SIFT/ORB keypoints
+         Naming: wall_N (north, +Y side), wall_S (south, -Y side),
+                 wall_W (west, -X), wall_E (east, +X)
+         All walls: 0.15 m thick, 4.0 m tall
+         ══════════════════════════════════════════════════════════════════ -->
+
+    <!-- North wall  (y = +5) -->
+    <model name="wall_N">
+      <static>true</static>
+      <pose>7.5 5.0 2.0 0 0 0</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry><box><size>17 0.15 4.0</size></box></geometry>
+        </collision>
+        <visual name="visual">
+          <geometry><box><size>17 0.15 4.0</size></box></geometry>
+          <material>
+            <script>
+              <uri>file://media/materials/scripts/gazebo.material</uri>
+              <name>Gazebo/Bricks</name>
+            </script>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <!-- South wall  (y = -5) -->
+    <model name="wall_S">
+      <static>true</static>
+      <pose>7.5 -5.0 2.0 0 0 0</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry><box><size>17 0.15 4.0</size></box></geometry>
+        </collision>
+        <visual name="visual">
+          <geometry><box><size>17 0.15 4.0</size></box></geometry>
+          <material>
+            <script>
+              <uri>file://media/materials/scripts/gazebo.material</uri>
+              <name>Gazebo/Bricks</name>
+            </script>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <!-- West wall  (x = -1) -->
+    <model name="wall_W">
+      <static>true</static>
+      <pose>-1.0 0 2.0 0 0 0</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry><box><size>0.15 10.3 4.0</size></box></geometry>
+        </collision>
+        <visual name="visual">
+          <geometry><box><size>0.15 10.3 4.0</size></box></geometry>
+          <material>
+            <script>
+              <uri>file://media/materials/scripts/gazebo.material</uri>
+              <name>Gazebo/Bricks</name>
+            </script>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <!-- East wall  (x = 16) -->
+    <model name="wall_E">
+      <static>true</static>
+      <pose>16.0 0 2.0 0 0 0</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry><box><size>0.15 10.3 4.0</size></box></geometry>
+        </collision>
+        <visual name="visual">
+          <geometry><box><size>0.15 10.3 4.0</size></box></geometry>
+          <material>
+            <script>
+              <uri>file://media/materials/scripts/gazebo.material</uri>
+              <name>Gazebo/Bricks</name>
+            </script>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <!-- ══════════════════════════════════════════════════════════════════
+         VISUAL LANDMARK BOARDS  –  Checkerboard panels on walls
+         給 RTMAP 額外的高對比參照點，每面牆各 2 塊
+         尺寸: 1.2 m × 1.2 m × 0.01 m，貼著牆面 (0.08 m offset)
+         ══════════════════════════════════════════════════════════════════ -->
+
+    <!-- North wall boards -->
+    <model name="board_N1">
+      <static>true</static>
+      <pose>3.5 4.93 2.0 0 0 0</pose>
+      <link name="link">
+        <visual name="visual">
+          <geometry><box><size>1.2 0.01 1.2</size></box></geometry>
+          <material><script>
+            <uri>file://media/materials/scripts/gazebo.material</uri>
+            <name>Gazebo/Checkerboard</name>
+          </script></material>
+        </visual>
+      </link>
+    </model>
+    <model name="board_N2">
+      <static>true</static>
+      <pose>11.5 4.93 2.0 0 0 0</pose>
+      <link name="link">
+        <visual name="visual">
+          <geometry><box><size>1.2 0.01 1.2</size></box></geometry>
+          <material><script>
+            <uri>file://media/materials/scripts/gazebo.material</uri>
+            <name>Gazebo/Checkerboard</name>
+          </script></material>
+        </visual>
+      </link>
+    </model>
+
+    <!-- South wall boards -->
+    <model name="board_S1">
+      <static>true</static>
+      <pose>3.5 -4.93 2.0 0 0 0</pose>
+      <link name="link">
+        <visual name="visual">
+          <geometry><box><size>1.2 0.01 1.2</size></box></geometry>
+          <material><script>
+            <uri>file://media/materials/scripts/gazebo.material</uri>
+            <name>Gazebo/Checkerboard</name>
+          </script></material>
+        </visual>
+      </link>
+    </model>
+    <model name="board_S2">
+      <static>true</static>
+      <pose>11.5 -4.93 2.0 0 0 0</pose>
+      <link name="link">
+        <visual name="visual">
+          <geometry><box><size>1.2 0.01 1.2</size></box></geometry>
+          <material><script>
+            <uri>file://media/materials/scripts/gazebo.material</uri>
+            <name>Gazebo/Checkerboard</name>
+          </script></material>
+        </visual>
+      </link>
+    </model>
+
+    <!-- West wall board (behind start) -->
+    <model name="board_W">
+      <static>true</static>
+      <pose>-0.93 0 2.0 0 0 0</pose>
+      <link name="link">
+        <visual name="visual">
+          <geometry><box><size>0.01 1.2 1.2</size></box></geometry>
+          <material><script>
+            <uri>file://media/materials/scripts/gazebo.material</uri>
+            <name>Gazebo/Checkerboard</name>
+          </script></material>
+        </visual>
+      </link>
+    </model>
+
+    <!-- East wall board (near landing zone) -->
+    <model name="board_E">
+      <static>true</static>
+      <pose>15.93 0 2.0 0 0 0</pose>
+      <link name="link">
+        <visual name="visual">
+          <geometry><box><size>0.01 1.2 1.2</size></box></geometry>
+          <material><script>
+            <uri>file://media/materials/scripts/gazebo.material</uri>
+            <name>Gazebo/Checkerboard</name>
+          </script></material>
+        </visual>
+      </link>
+    </model>
+
+    <!-- ══════════════════════════════════════════════════════════════════
+         START MARKER  –  green square at origin (unchanged)
+         ══════════════════════════════════════════════════════════════════ -->
+    <model name="start_marker">
+      <static>true</static>
+      <pose>0 0 0.001 0 0 0</pose>
+      <link name="link">
+        <visual name="visual">
+          <geometry><box><size>0.6 0.6 0.002</size></box></geometry>
+          <material><script>
+            <uri>file://media/materials/scripts/gazebo.material</uri>
+            <name>Gazebo/Green</name>
+          </script></material>
+        </visual>
+      </link>
+    </model>
+
+    <!-- ══════════════════════════════════════════════════════════════════
+         PILLARS  –  same positions/sizes, now with RedBricks for contrast
+         ══════════════════════════════════════════════════════════════════ -->
+
+    <model name="pillar_1">
+      <static>true</static>
+      <pose>4.0 0.0 1.5 0 0 0</pose>
+      <link name="link">
+        <visual name="visual">
+          <geometry><cylinder><radius>0.40</radius><length>3.0</length></cylinder></geometry>
+          <material><script>
+            <uri>file://media/materials/scripts/gazebo.material</uri>
+            <name>Gazebo/Red</name>
+          </script></material>
+        </visual>
+        <collision name="collision">
+          <geometry><cylinder><radius>0.40</radius><length>3.0</length></cylinder></geometry>
+        </collision>
+      </link>
+    </model>
+
+    <model name="pillar_2">
+      <static>true</static>
+      <pose>6.5 1.8 1.5 0 0 0</pose>
+      <link name="link">
+        <visual name="visual">
+          <geometry><cylinder><radius>0.35</radius><length>3.0</length></cylinder></geometry>
+          <material><script>
+            <uri>file://media/materials/scripts/gazebo.material</uri>
+            <name>Gazebo/Blue</name>
+          </script></material>
+        </visual>
+        <collision name="collision">
+          <geometry><cylinder><radius>0.35</radius><length>3.0</length></cylinder></geometry>
+        </collision>
+      </link>
+    </model>
+
+    <model name="pillar_3">
+      <static>true</static>
+      <pose>7.0 -1.5 1.5 0 0 0</pose>
+      <link name="link">
+        <visual name="visual">
+          <geometry><cylinder><radius>0.35</radius><length>3.0</length></cylinder></geometry>
+          <material><script>
+            <uri>file://media/materials/scripts/gazebo.material</uri>
+            <name>Gazebo/Blue</name>
+          </script></material>
+        </visual>
+        <collision name="collision">
+          <geometry><cylinder><radius>0.35</radius><length>3.0</length></cylinder></geometry>
+        </collision>
+      </link>
+    </model>
+
+    <model name="pillar_4">
+      <static>true</static>
+      <pose>9.5 0.6 1.5 0 0 0</pose>
+      <link name="link">
+        <visual name="visual">
+          <geometry><cylinder><radius>0.40</radius><length>3.0</length></cylinder></geometry>
+          <material><script>
+            <uri>file://media/materials/scripts/gazebo.material</uri>
+            <name>Gazebo/Red</name>
+          </script></material>
+        </visual>
+        <collision name="collision">
+          <geometry><cylinder><radius>0.40</radius><length>3.0</length></cylinder></geometry>
+        </collision>
+      </link>
+    </model>
+
+    <model name="pillar_5">
+      <static>true</static>
+      <pose>11.5 -1.0 1.25 0 0 0</pose>
+      <link name="link">
+        <visual name="visual">
+          <geometry><cylinder><radius>0.30</radius><length>2.5</length></cylinder></geometry>
+          <material><script>
+            <uri>file://media/materials/scripts/gazebo.material</uri>
+            <name>Gazebo/Red</name>
+          </script></material>
+        </visual>
+        <collision name="collision">
+          <geometry><cylinder><radius>0.30</radius><length>2.5</length></cylinder></geometry>
+        </collision>
+      </link>
+    </model>
+
+    <!-- ══════════════════════════════════════════════════════════════════
+         APRILTAG LANDING PAD  (unchanged)
+         ══════════════════════════════════════════════════════════════════ -->
+    <model name="apriltag_pad">
+      <static>true</static>
+      <pose>14.0 0.0 0.001 0 0 0</pose>
+      <link name="link">
+        <visual name="visual">
+          <geometry><box><size>1.0 1.0 0.002</size></box></geometry>
+          <material>
+            <script>
+              <uri>file://media/materials/scripts/apriltag.material</uri>
+              <name>AprilTagPad/tag36_11_00000</name>
+            </script>
+          </material>
+        </visual>
+        <collision name="collision">
+          <geometry><box><size>1.0 1.0 0.002</size></box></geometry>
+        </collision>
+      </link>
+    </model>
+
+    <!-- ── GUI camera ───────────────────────────────────────────────────── -->
+    <!-- Side view from south at y=-12, z=2.5: looks inside corridor without
+         being blocked by ceiling. Yaw=1.57 faces +X (forward flight axis). -->
+    <gui fullscreen="0">
+      <camera name="user_camera">
+        <pose>7 -12 2.5 0 0.15 1.57</pose>
+        <view_controller>orbit</view_controller>
+      </camera>
+    </gui>
+
+  </world>
+</sdf>

@@ -34,7 +34,28 @@
 
     <!-- ── Environment ───────────────────────────────────────────────────── -->
     <include><uri>model://sun</uri></include>
-    <include><uri>model://ground_plane</uri></include>
+    <!-- <include><uri>model://ground_plane</uri></include> -->
+    <model name="ground_plane">
+      <static>true</static>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <plane><normal>0 0 1</normal><size>50 50</size></plane>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <plane><normal>0 0 1</normal><size>50 50</size></plane>
+          </geometry>
+          <material>
+            <script>
+              <uri>file://media/materials/scripts/gazebo.material</uri>
+              <name>Gazebo/WoodFloor</name>
+            </script>
+          </material>
+        </visual>
+      </link>
+    </model>
 
     <!-- ── Start marker: green square at origin ──────────────────────────── -->
     <model name="start_marker">

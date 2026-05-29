@@ -4,7 +4,8 @@
 # Nodes launched (in order):
 #   1. Gazebo + iris + vi_sensor    (obstacle_course.world)
 #   2. gazebo_controller            → /iris/odometry_sensor1/pose
-#   3. apriltag_ros                 → /tag_detections
+#   3. apriltag_ros (forward)       → /tag_detections        (EXPLORE→APPROACH)
+#  3.5. apriltag_ros (downward)     → /down_cam/tag_detections (precision landing)
 #   4. obstacle_detector            → /obstacle/info
 #   5. trajectory_planner           → /iris/command/pose, /traj/status
 #   6. trajectory_viz               → RViz markers
@@ -22,15 +23,19 @@ source /opt/ros/noetic/setup.bash
 source /root/catkin_ws/devel/setup.bash 2>/dev/null || true
 
 export DISPLAY=:99
+WORLD_NAME=${1:-obstacle_course_v2}
 
 # ── Sync world file and AprilTag assets ───────────────────────────────────────
-cp /root/catkin_ws/src/worlds/obstacle_course.world \
-   /root/catkin_ws/src/rotors_simulator/rotors_gazebo/worlds/obstacle_course.world
+cp /root/catkin_ws/src/worlds/$WORLD_NAME.world \
+   /root/catkin_ws/src/rotors_simulator/rotors_gazebo/worlds/$WORLD_NAME.world
 
 cp /root/catkin_ws/src/worlds/media/materials/scripts/apriltag.material \
    /usr/share/gazebo-11/media/materials/scripts/ 2>/dev/null || true
 cp /root/catkin_ws/src/worlds/media/materials/textures/tag36_11_00000.png \
    /usr/share/gazebo-11/media/materials/textures/ 2>/dev/null || true
+# Inject tag definition (id=0, size=0.8m) into system apriltag_ros config
+cp /root/scripts/tags.yaml \
+   /opt/ros/noetic/share/apriltag_ros/config/tags.yaml 2>/dev/null || true
 
 export GAZEBO_MODEL_PATH=/root/catkin_ws/src/rotors_simulator/rotors_gazebo/models:${GAZEBO_MODEL_PATH}
 export GAZEBO_RESOURCE_PATH=/root/catkin_ws/src/worlds:/root/catkin_ws/src/rotors_simulator/rotors_gazebo:${GAZEBO_RESOURCE_PATH}
@@ -40,7 +45,7 @@ echo " Full Autonomous Mission"
 echo " IDLE → TAKEOFF → EXPLORE → AVOID → LAND"
 echo "=============================================="
 echo ""
-echo " World: obstacle_course   AprilTag @ (14, 0)"
+echo " World: $WORLD_NAME   AprilTag @ (14, 0)"
 echo " Pillars: P1(4,0) P2(6.5,1.8) P3(7,-1.5) P4(9.5,0.6) P5(11.5,-1)"
 echo ""
 
@@ -54,9 +59,9 @@ xterm -title "Gazebo: Full Mission" \
     export DISPLAY=:99
     export GAZEBO_MODEL_PATH=/root/catkin_ws/src/rotors_simulator/rotors_gazebo/models:\$GAZEBO_MODEL_PATH
     export GAZEBO_RESOURCE_PATH=/root/catkin_ws/src/worlds:/root/catkin_ws/src/rotors_simulator/rotors_gazebo:\$GAZEBO_RESOURCE_PATH
-    roslaunch rotors_gazebo mav_hovering_example_with_vi_sensor.launch \
+    roslaunch /root/scripts/iris_down_cam.launch \
       mav_name:=iris \
-      world_name:=obstacle_course 2>&1
+      world_name:=${WORLD_NAME} 2>&1
     bash
   " &
 
@@ -112,6 +117,24 @@ xterm -title "AprilTag Detector" \
     export DISPLAY=:99
     roslaunch apriltag_ros continuous_detection.launch \
       camera_name:=/iris/vi_sensor/camera_depth \
+      image_topic:=image_raw \
+      tags_config:=/root/scripts/tags.yaml 2>&1
+    bash
+  " &
+
+sleep 2
+
+# ── 3.5. AprilTag detector — downward camera (for apriltag_lander.py) ────────
+# Runs in ROS namespace "down_cam" → publishes /down_cam/tag_detections
+xterm -title "AprilTag Down-Cam" \
+  -geometry 80x12+10+610 \
+  -fa 'Monospace' -fs 10 -bg '#0d1117' -fg '#3fb950' \
+  -e bash -c "
+    source /opt/ros/noetic/setup.bash
+    source /root/catkin_ws/devel/setup.bash 2>/dev/null || true
+    export DISPLAY=:99
+    ROS_NAMESPACE=down_cam roslaunch apriltag_ros continuous_detection.launch \
+      camera_name:=/iris/camera_down \
       image_topic:=image_raw \
       tags_config:=/root/scripts/tags.yaml 2>&1
     bash
