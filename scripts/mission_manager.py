@@ -31,6 +31,7 @@ Topic interface (unchanged for demo_full_mission.sh compatibility):
 import math
 import os
 import sys
+import threading
 import rospy
 import numpy as np
 from geometry_msgs.msg import PoseStamped
@@ -67,7 +68,7 @@ AVOID_TRIGGER_M    = 2.5    # m — trigger OBSTACLE_REPLAN below this distance
 DODGE_LATERAL_M    = 2.5    # m — geometric-fallback lateral dodge
 DODGE_RESUME_M     = 2.5    # m — geometric-fallback clearance past obstacle
 MIN_PASSABLE_W     = 1.0    # m — minimum gap width for gap-steering
-REPLAN_COOLDOWN    = 3.0    # s — min interval between replans
+REPLAN_COOLDOWN    = 8.0    # s — min interval between replans
 CRUISE_SPEED       = 0.8    # m/s
 MAV_NAME           = 'iris'
 
@@ -79,13 +80,22 @@ APPROACH_LOST_TICKS  = 20   # ticks (~2 s) without tag before aborting APPROACH
 
 # Phase2 ConvexOpt parameters
 DRONE_RADIUS       = 0.25   # m (from drone_fsm / obstacle_avoidance_planner)
-OBS_SPHERE_RADIUS  = 0.5    # m — conservative sphere model for obstacle_course pillars
 OBS_SAFETY_MARGIN  = 0.3    # m
 FLIGHT_ENV_KWARGS  = dict(
     x_range=(-1.0, 16.0),
     y_range=(-5.0,  5.0),
     z_range=(0.5,   3.0),
 )
+
+# All pillar positions from obstacle_course_v2.world — (cx, cy, radius)
+# Registering all of them at once avoids per-replan oscillation between adjacent pillars.
+KNOWN_PILLARS = [
+    (4.0,   0.0,  0.40),   # P1
+    (6.5,   1.8,  0.35),   # P2
+    (7.0,  -1.5,  0.35),   # P3
+    (9.5,   0.6,  0.40),   # P4
+    (11.5, -1.0,  0.30),   # P5
+]
 
 # ── State labels ──────────────────────────────────────────────────────────────
 IDLE            = 'IDLE'
@@ -142,6 +152,7 @@ class MissionManager:
         self._traj_status = 'IDLE'
         self._z_int       = 0.0
         self._last_replan_time    = rospy.Time(0)
+        self._replan_thread: threading.Thread | None = None  # async ConvexOpt
         # AprilTag approach state (drone_fsm APPROACH + PRECISION_LAND pattern)
         self._tag_stable_count    = 0     # rolling +1/-1 per frame; replaces bool _tag_seen
         self._tag_world_pos       = None  # (x, y, z) last estimated tag world position
@@ -276,21 +287,34 @@ class MissionManager:
     # ── OBSTACLE_REPLAN (Phase2 core) ─────────────────────────────────────────
 
     def _tick_obstacle_replan(self):
-        if not self._entry:
+        if self._entry:
+            self._entry = False
+            rospy.loginfo('[Mission] OBSTACLE_REPLAN — cancelling trajectory')
+            self._cancel_pub.publish(Empty())
+            # Kick off ConvexOpt in a background thread so the 10 Hz timer
+            # is never blocked. Hold position while the thread computes.
+            self._replan_thread = threading.Thread(
+                target=self._replan_worker, daemon=True)
+            self._replan_thread.start()
             return
-        self._entry = False
 
-        rospy.loginfo('[Mission] OBSTACLE_REPLAN — cancelling trajectory')
-        self._cancel_pub.publish(Empty())
-        rospy.sleep(0.05)
+        # Thread still running — hold current position and wait
+        if self._replan_thread and self._replan_thread.is_alive():
+            if self._pos:
+                cx, cy, _ = self._pos
+                self._send_pose(cx, cy, CRUISE_Z)
+            return
 
+        # Thread finished but state not yet switched (race guard — shouldn't happen)
+        rospy.logwarn_throttle(1.0, '[Mission] OBSTACLE_REPLAN: thread done but state not switched')
+
+    def _replan_worker(self):
+        """Background thread: run ConvexOpt (slow), then return to EXPLORE."""
         success = self._run_convex_replan() if _HAVE_CONVEX_OPT else False
         if not success:
             rospy.logwarn('[Mission] ConvexOpt unavailable/failed — geometric fallback')
             self._replan_with_avoidance()
 
-        # Return to EXPLORE without triggering entry logic so the new
-        # avoidance trajectory isn't immediately overwritten.
         rospy.loginfo('[Mission] OBSTACLE_REPLAN complete → EXPLORE')
         self._state = EXPLORE
         self._entry = False
@@ -358,16 +382,13 @@ class MissionManager:
 
     def _run_convex_replan(self) -> bool:
         """
-        Projects the nearest obstacle into world frame using drone pose and yaw,
-        runs ConvexPathOptimizer, and sends safe waypoints to trajectory_planner.
+        Registers ALL known pillars in ConvexPathOptimizer and plans a single
+        safe path from current position to TARGET.  Using all pillars avoids the
+        oscillation that occurs when only one obstacle is registered and the drone
+        bounces between adjacent pillars on successive replans.
         Returns True on success.
         """
         cx, cy, _ = self._pos
-        dist = self._obs[1]
-
-        # Project nearest obstacle into world frame (drone_fsm: current_pos + heading)
-        obs_x = cx + dist * math.cos(self._yaw)
-        obs_y = cy + dist * math.sin(self._yaw)
 
         optimizer = ConvexPathOptimizer(
             drone_radius=DRONE_RADIUS,
@@ -377,27 +398,30 @@ class MissionManager:
             lambda_smooth=8.0,
             lambda_safe=8.0,
         )
-        optimizer.add_obstacle(SphereObstacle(
-            center=[obs_x, obs_y, CRUISE_Z],
-            radius=OBS_SPHERE_RADIUS,
-            safety_margin=OBS_SAFETY_MARGIN,
-        ))
+
+        # Register every pillar so the QP sees the full obstacle field at once.
+        for px, py, pr in KNOWN_PILLARS:
+            optimizer.add_obstacle(SphereObstacle(
+                center=[px, py, CRUISE_Z],
+                radius=pr,
+                safety_margin=OBS_SAFETY_MARGIN,
+            ))
 
         try:
             safe_wps, info = optimizer.optimize(
                 [(cx, cy, CRUISE_Z), TARGET],
-                n_intermediate=4,
+                n_intermediate=5,   # more intermediate pts for a 5-pillar field
             )
         except Exception as exc:
             rospy.logwarn(f'[Mission] ConvexOpt exception: {exc}')
             return False
 
-        # Clamp z to cruise altitude — obstacles are vertical pillars, not spheres
+        # Clamp z to cruise altitude — pillars are vertical cylinders, not spheres
         safe_wps = [[float(wp[0]), float(wp[1]), CRUISE_Z] for wp in safe_wps]
 
         rospy.loginfo(
             f'[Mission] ConvexOpt [{info["solver"]}]  '
-            f'obs=({obs_x:.1f},{obs_y:.1f})  '
+            f'pillars={len(KNOWN_PILLARS)}  '
             f'wps={info["n_waypoints"]}  safe={info["path_safe"]}  '
             f'cvxpy={CVXPY_AVAILABLE}'
         )

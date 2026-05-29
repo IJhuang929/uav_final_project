@@ -8,8 +8,8 @@ it continues feeding obstacle_detector and the forward apriltag_ros instance
 that mission_manager uses for EXPLORE → APPROACH.
 
 Downward camera coordinate mapping (camera rpy="0 pi/2 0" on base_link):
-  camera_link +X  = body −Z  (optical axis = altitude direction)
-  optical Z  = altitude above tag
+  camera_link +X  = body −Z  (optical axis points downward)
+  optical Z  = altitude above tag  (p.z = distance to ground)
   optical X  = body −Y direction  →  vy = −kp × p.x
   optical Y  = body −X direction  →  vx = −kp × p.y
 

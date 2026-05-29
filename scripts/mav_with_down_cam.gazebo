@@ -12,6 +12,13 @@
     optical Z = altitude above tag  (p.z)
     optical X = body -Y direction   (p.x) → vy = -kp * p.x
     optical Y = body -X direction   (p.y) → vx = -kp * p.y
+
+  IMPORTANT — xacro block-parameter ordering:
+    camera_macro params = "... *geometry *origin"
+    *geometry is FIRST, *origin is SECOND.
+    The <geometry> block MUST appear before <origin> in the macro call,
+    otherwise xacro assigns them to the wrong parameters and the camera
+    ends up at base_link position with no rotation (looking forward).
 -->
 <robot name="$(arg mav_name)" xmlns:xacro="http://ros.org/wiki/xacro">
 
@@ -34,11 +41,12 @@
     noise_mean="0.0"
     noise_stddev="0.007"
     enable_visual="false">
-    <!-- Mount below body centre, pitch +90° so camera +X points downward -->
-    <origin xyz="0 0 -0.06" rpy="0 ${pi/2} 0" />
+    <!-- *geometry must come FIRST to match macro param order "*geometry *origin" -->
     <geometry>
       <box><size>0.02 0.02 0.02</size></box>
     </geometry>
+    <!-- *origin comes SECOND: 6 cm below body centre, pitch +90° → camera +X = body -Z (down) -->
+    <origin xyz="0 0 -0.06" rpy="0 ${pi/2} 0" />
   </xacro:camera_macro>
 
 </robot>
